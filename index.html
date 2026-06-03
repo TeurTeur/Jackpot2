@@ -880,15 +880,18 @@
                 alert("Votre image de profil a été mise à jour avec succès !");
             }
         }
-            <script type="module">
+    </script> <!-- FIN DE TON SCRIPT PRINCIPAL ICI -->
+
+    <!-- DÉBUT DU SCRIPT FIREBASE (Module) -->
+    <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-analytics.js";
+        
         // TODO: Add SDKs for Firebase products that you want to use
         // https://firebase.google.com/docs/web/setup#available-libraries
 
         // Your web app's Firebase configuration
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
         const firebaseConfig = {
             apiKey: "AIzaSyDK2HxnIh35qU4WL_teHL2Urgn8vbD20bE",
             authDomain: "sukura-966c8.firebaseapp.com",
@@ -899,6 +902,10 @@
             appId: "1:396223335996:web:1cd168cb1e360ce704bd39",
             measurementId: "G-9LKE8QL1Z7"
         };
+
+        // Initialisation de Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
     </script>
 </body>
 </html>
