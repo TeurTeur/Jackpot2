@@ -442,10 +442,12 @@
             </div>
         </div>
     </div>
+    
 
     <div id="win-message"></div>
 
     <script>
+    
         // --- CONSTANTES ET DOM ---
         const ADMIN_EMAIL = 'martinsdamien14@gmail.com';
         const symbols = ['🌸', '⛩️', '🍣', '🍡', '🍵', '👺']; 
@@ -514,63 +516,74 @@
         }
 
         // --- AUTHENTIFICATION ---
-        function register() {
-            const name = document.getElementById('reg-name').value.trim();
-            const email = document.getElementById('reg-email').value.trim();
-            const password = document.getElementById('reg-password').value;
-            const avatarInput = document.getElementById('reg-avatar').value.trim();
+        // TON NOUVEAU CODE
+async function register() {
+    const name = document.getElementById('reg-name').value;
+    const email = document.getElementById('reg-email').value;
+    const password = document.getElementById('reg-password').value;
+    const avatarInput = document.getElementById('reg-avatar').value;
 
-            if (!name || !email || !password) return alert("Veuillez remplir tous les champs obligatoires !");
-            if (usersDB[email]) return alert("Un compte existe déjà avec cette adresse e-mail.");
+    // 1. On envoie les infos au fichier PHP
+    const reponse = await fetch('register.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, email: email, password: password, avatar: avatarInput })
+    });
 
-            // Sauvegarde de l'utilisateur avec son avatar (s'il est vide, on le gère plus tard)
-            usersDB[email] = { 
-                name: name, 
-                password: password, 
-                credits: 1000, 
-                multiplier: 1, 
-                multiplierExpires: null, 
-                lastDaily: null,
-                avatar: avatarInput 
-            };
-            
-            localStorage.setItem('sakuraUsers', JSON.stringify(usersDB));
-            startSession(email);
-        }
+    // 2. On lit la réponse du serveur
+    const data = await reponse.json();
 
-        function login() {
-            const email = document.getElementById('login-email').value.trim();
-            const password = document.getElementById('login-password').value;
+    if (data.success) {
+        alert("Inscription réussie !");
+        startSession(data.user); // On lance le jeu avec les données venues de la DB
+    } else {
+        alert("Erreur : " + data.message);
+    }
+}
 
-            const user = usersDB[email];
-            if (user && user.password === password) startSession(email);
-            else alert("E-mail ou mot de passe incorrect.");
-        }
+// TON NOUVEAU CODE
+async function login() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
 
-        function startSession(email) {
-            currentUserEmail = email;
-            const user = usersDB[email];
+    const reponse = await fetch('login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+    });
 
-            document.getElementById('auth-screen').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('auth-screen').style.display = 'none';
-                document.getElementById('game-container').style.display = 'flex';
-                document.getElementById('auth-screen').style.opacity = '1';
-            }, 500);
-            
-            // Affichage du nom et de la photo de profil (Avatar par défaut avec DiceBear si vide)
-            playerNameDisplay.innerText = user.name;
-            const defaultAvatarUrl = `https://api.dicebear.com/8.x/adventurer/svg?seed=${encodeURIComponent(user.name)}`;
-            playerAvatarImg.src = user.avatar ? user.avatar : defaultAvatarUrl;
+    const data = await reponse.json();
 
-            creditDisplay.innerText = user.credits;
+    if (data.success) {
+        startSession(data.user); // Le PHP nous renvoie les infos (pseudo, crédits...)
+    } else {
+        alert("E-mail ou mot de passe incorrect.");
+    }
+}
 
-            const btnAdmin = document.getElementById('btn-admin');
-            btnAdmin.style.display = (currentUserEmail === ADMIN_EMAIL) ? 'inline-block' : 'none';
+// TON NOUVEAU CODE
+let currentUser = null; // Nouvelle variable globale pour stocker le joueur
 
-            updateMultiplierUI(); 
-            createGrid();
-        }
+function startSession(userData) {
+    currentUser = userData; // On stocke les infos du joueur connecté
+
+    document.getElementById('auth-screen').style.opacity = '0';
+    setTimeout(() => {
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('game-container').style.display = 'flex';
+        document.getElementById('auth-screen').style.opacity = '1';
+    }, 500);
+    
+    // On affiche ses infos
+    playerNameDisplay.innerText = currentUser.name;
+    const defaultAvatarUrl = `https://api.dicebear.com/8.x/adventurer/svg?seed=${encodeURIComponent(currentUser.name)}`;
+    playerAvatarImg.src = currentUser.avatar ? currentUser.avatar : defaultAvatarUrl;
+
+    creditDisplay.innerText = currentUser.credits;
+    
+    createGrid();
+}
+
 
         function logout() {
             currentUserEmail = null;
@@ -586,15 +599,22 @@
             document.getElementById('daily-screen').style.display = 'none'; 
         }
 
-        function saveState() {
-            if (currentUserEmail) {
-                if(usersDB[currentUserEmail].credits < 0) usersDB[currentUserEmail].credits = 0;
-                creditDisplay.innerText = usersDB[currentUserEmail].credits;
-                localStorage.setItem('sakuraUsers', JSON.stringify(usersDB));
-            }
-            localStorage.setItem('sakuraJackpot', currentJackpot);
-            jackpotDisplay.innerText = currentJackpot;
-        }
+        // TON NOUVEAU CODE
+async function saveState() {
+    // On met à jour l'affichage sur la page
+    creditDisplay.innerText = currentUser.credits;
+
+    // On envoie le nouveau score au serveur pour le sauvegarder dans la base de données
+    await fetch('update_credits.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            email: currentUser.email, 
+            nouveauxCredits: currentUser.credits 
+        })
+    });
+}
+
 
         function giveCredits() {
             if (currentUserEmail !== ADMIN_EMAIL) return alert("Accès non autorisé !");
@@ -880,32 +900,6 @@
                 alert("Votre image de profil a été mise à jour avec succès !");
             }
         }
-    </script> <!-- FIN DE TON SCRIPT PRINCIPAL ICI -->
-
-    <!-- DÉBUT DU SCRIPT FIREBASE (Module) -->
-    <script type="module">
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-analytics.js";
-        
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
-
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyDK2HxnIh35qU4WL_teHL2Urgn8vbD20bE",
-            authDomain: "sukura-966c8.firebaseapp.com",
-            databaseURL: "https://sukura-966c8-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "sukura-966c8",
-            storageBucket: "sukura-966c8.firebasestorage.app",
-            messagingSenderId: "396223335996",
-            appId: "1:396223335996:web:1cd168cb1e360ce704bd39",
-            measurementId: "G-9LKE8QL1Z7"
-        };
-
-        // Initialisation de Firebase
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
     </script>
 </body>
 </html>
